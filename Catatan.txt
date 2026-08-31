@@ -1,0 +1,3 @@
+
+nip: 26040552
+password: Password@123

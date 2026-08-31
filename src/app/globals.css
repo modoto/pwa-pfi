@@ -1,26 +1,139 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Breakpoint ekstra untuk HP kecil (< 415px) */
+  --breakpoint-xs: 26rem;
+
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-300: #a5b4fc;
+  --color-brand-400: #818cf8;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+  --color-brand-800: #3730a3;
+  --color-brand-900: #312e81;
+  --color-brand-950: #1e1b4b;
+
+  /* ---- Token desain PFI (Figma: Banca / Login Page) ---- */
+  --font-jakarta: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
+
+  /* Gradien panel kiri */
+  --color-pfi-400: #3b8ee6;
+  --color-pfi-500: #1e74d8;
+  --color-pfi-600: #135caf;
+
+  /* Aksi utama */
+  --color-pfi-orange: #f67d1f;
+  --color-pfi-orange-dark: #dd6c12;
+
+  /* Teks & garis form */
+  --color-pfi-ink: #1f2733;
+  --color-pfi-muted: #455a7a;
+  --color-pfi-label: #001a24;
+  --color-pfi-line: #e4e9f2;
+
+  /* ---- Token desain PFI (Figma: Banca / Beranda) ---- */
+  --color-pfi-bg: #f8fafc; /* latar halaman */
+  --color-pfi-heading: #101828; /* judul & angka */
+  --color-pfi-title: #221500; /* judul seksi Jadwal & Berita */
+  --color-pfi-subtle: #90a1b9; /* teks pendukung */
+  --color-pfi-hairline: #f1f5f9; /* garis kartu */
+  --color-pfi-link: #0066b3; /* tautan "Lihat Detail" */
+  --color-pfi-tint: #eff6ff; /* latar ikon */
+  --color-pfi-tint-alt: #f5f9ff;
+  --color-pfi-accent: #1447e6; /* kategori Leads */
+  --color-pfi-amber: #f59e0b; /* kategori Training */
+  --color-pfi-up-bg: #ecfdf5;
+  --color-pfi-up-fg: #0b996a;
+  --color-pfi-down-bg: #fcebeb;
+  --color-pfi-down-fg: #dc2626;
+  --color-pfi-sel-bg: #f1f4fe; /* tanggal terpilih */
+  --color-pfi-sel-border: #a1b6f7;
+  --color-pfi-day: #f7f7f7; /* tanggal yang punya agenda */
+  --color-pfi-avatar-bg: #e8f2fa;
+  --color-pfi-avatar-fg: #0a5ea8;
+  --color-pfi-news-line: #ededed;
+  --color-pfi-news-meta: #999999;
+
+  /* ---- Token desain PFI (Figma: Banca / Leads) ---- */
+  --color-pfi-thead: #f0fcff; /* latar kepala tabel */
+  --color-pfi-chip-bg: #f4f6fa; /* chip kategori */
+  --color-pfi-chip-border: #e7ecf2;
+  --color-pfi-search: #657a85;
+  --color-pfi-page: #354a54;
+  --color-pfi-page-border: #eeeef0;
+
+  /* Chip status lead — empat kelompok warna */
+  --color-status-blue-bg: #eff8ff;
+  --color-status-blue-border: #b2ddff;
+  --color-status-blue-fg: #175cd3;
+  --color-status-purple-bg: #f4f3ff;
+  --color-status-purple-border: #d9d6fe;
+  --color-status-purple-fg: #5925dc;
+  --color-status-orange-bg: #fff4ed;
+  --color-status-orange-border: #f9dbaf;
+  --color-status-orange-fg: #b93815;
+  --color-status-green-bg: #ecfdf3;
+  --color-status-green-border: #abefc6;
+  --color-status-green-fg: #067647;
+
+  /* Radio terpilih pada form (diperkirakan dari screenshot desain). */
+  --color-pfi-radio: #12b76a;
+
+  --shadow-card: 0px 4px 4px 0px rgba(147, 147, 147, 0.05);
+  --shadow-menu: 0px 4px 2px 0px rgba(0, 0, 0, 0.08);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    color-scheme: light dark;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+    /* Cegah efek "bounce" saat scroll di aplikasi standalone */
+    overscroll-behavior-y: none;
+  }
+
+  /* Target sentuh minimal 44px sesuai panduan aksesibilitas mobile */
+  button,
+  a,
+  [role="button"] {
+    touch-action: manipulation;
+  }
+
+  ::selection {
+    @apply bg-brand-200 text-brand-950;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ---- Utility safe-area (notch HP & home indicator) ---- */
+@utility pt-safe {
+  padding-top: max(env(safe-area-inset-top), 0px);
+}
+@utility pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+}
+@utility px-safe {
+  padding-left: max(env(safe-area-inset-left), 0px);
+  padding-right: max(env(safe-area-inset-right), 0px);
+}
+@utility mb-safe {
+  margin-bottom: max(env(safe-area-inset-bottom), 0px);
+}
+
+/* Kartu dasar dipakai di banyak halaman */
+@utility card {
+  @apply rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm
+         dark:border-slate-800 dark:bg-slate-900/70 sm:p-5;
 }

@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Runtime SQLite hasil salinan dari node_modules, bukan kode proyek.
+    "public/sqlite/**",
   ]),
 ]);
 

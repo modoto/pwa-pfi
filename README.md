@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PFI-EAPS — Next.js PWA Responsif
 
-## Getting Started
+Starter Progressive Web App dengan **Next.js 16 (App Router) + React 19 + TypeScript + Tailwind CSS v4**,
+dioptimalkan untuk **HP dan tablet**.
 
-First, run the development server:
+## Menjalankan
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run dev          # http://localhost:3000
+npm run build        # build produksi
+npm start            # jalankan hasil build (service worker aktif di sini)
+npm run gen:icons    # regenerate ikon PWA dari scripts/generate-icons.mjs
+npm run lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+> Service worker sengaja **hanya aktif di mode production** supaya cache tidak
+> mengganggu hot reload saat `npm run dev`. Untuk menguji fitur offline/install:
+> `npm run build && npm start`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Menguji di HP / tablet
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Jalankan `npm run start:lan`, lalu buka `http://<IP-komputer>:3000` dari perangkat (satu jaringan Wi-Fi).
+2. Service worker & tombol **Pasang** butuh HTTPS (kecuali `localhost`). Untuk uji instalasi
+   sesungguhnya, pakai tunnel seperti `npx cloudflared tunnel --url http://localhost:3000`
+   atau deploy ke Vercel/Netlify.
+3. Android/Chrome: menu ⋮ → *Install app*. iOS/Safari: tombol Bagikan → *Tambah ke Layar Utama*.
 
-## Learn More
+## Strategi responsif
 
-To learn more about Next.js, take a look at the following resources:
+| Lebar layar | Breakpoint | Tata letak |
+|---|---|---|
+| < 415px | base | 1 kolom, tab bar bawah |
+| ≥ 415px | `xs` (26rem) | grid 2 kolom untuk kartu |
+| ≥ 640px | `sm` | baris form sejajar, padding lebih lega |
+| ≥ 768px | `md` (tablet potret) | tab bar bawah diganti **sidebar ikon**, grid 3 kolom |
+| ≥ 1024px | `lg` (tablet lanskap) | sidebar melebar + label, grid 4 kolom |
+| ≥ 1280px | `xl` | konten maksimal 72rem, 4 kolom katalog |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Detail lain: satuan `dvh` (aman terhadap bilah alamat mobile), utility `pt-safe` / `pb-safe`
+untuk notch & home indicator iPhone, `viewportFit: "cover"`, target sentuh minimal 44px,
+dan zoom tidak dikunci (`maximumScale: 5`) demi aksesibilitas.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Struktur
 
-## Deploy on Vercel
+```
+public/
+  manifest.webmanifest   # nama, ikon, shortcut, display standalone
+  sw.js                  # service worker (cache & offline)
+  offline.html           # halaman fallback saat offline
+  icons/                 # ikon any + maskable + apple-touch
+scripts/
+  generate-icons.mjs     # generator ikon berbasis sharp
+src/
+  app/
+    layout.tsx           # metadata PWA, viewport, font, AppShell
+    page.tsx             # Beranda (dashboard)
+    katalog/page.tsx     # grid produk responsif
+    statistik/page.tsx   # grafik CSS murni
+    profil/page.tsx      # preferensi + status PWA live
+    globals.css          # token Tailwind v4, utility safe-area
+  components/
+    app-shell.tsx        # kerangka: sidebar + topbar + konten + bottom nav
+    side-nav.tsx         # navigasi tablet/desktop (md & lg)
+    bottom-nav.tsx       # tab bar mobile (< md)
+    top-bar.tsx          # judul, pencarian, notifikasi, tombol pasang
+    install-button.tsx   # beforeinstallprompt + panduan iOS
+    network-status.tsx   # banner offline
+    service-worker-registrar.tsx  # registrasi SW + notifikasi versi baru
+    ui.tsx               # Card, Section, StatCard, Badge
+  lib/
+    nav.ts, utils.ts
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Caching service worker
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Jenis request | Strategi |
+|---|---|
+| Navigasi halaman | network-first → cache → `/offline.html` |
+| `/_next/static`, ikon, gambar, font | cache-first + revalidate di belakang layar |
+| Lainnya (mis. API) | network-first dengan fallback cache |
+
+Naikkan `CACHE_VERSION` di [public/sw.js](public/sw.js) saat ingin memaksa semua cache lama dibuang.
+Saat versi baru terdeteksi, muncul toast **"Versi baru tersedia — Muat ulang"**.
+
+## Mengganti identitas aplikasi
+
+1. Nama & warna: `public/manifest.webmanifest` dan `APP_NAME` di [src/app/layout.tsx](src/app/layout.tsx).
+2. Ikon: edit SVG di [scripts/generate-icons.mjs](scripts/generate-icons.mjs) lalu `npm run gen:icons`.
+3. Warna brand: variabel `--color-brand-*` di [src/app/globals.css](src/app/globals.css).
