@@ -161,6 +161,50 @@ sudo journalctl -u pfi-eaps -f
 Node dijalankan langsung (bukan lewat `npm start`) supaya sinyal stop/restart dari systemd
 sampai ke prosesnya, bukan berhenti di npm.
 
+### Alternatif: PM2
+
+Kalau lebih terbiasa dengan PM2, pakai `ecosystem.config.js` yang sudah ada di repo.
+**Pilih salah satu** — systemd atau PM2, jangan dua-duanya, karena keduanya memakai port 3555.
+Kalau unit systemd di atas terlanjur dipasang: `sudo systemctl disable --now pfi-eaps`.
+
+```bash
+sudo npm install -g pm2
+sudo mkdir -p /var/log/pfi-eaps && sudo chown pfi:pfi /var/log/pfi-eaps
+
+cd /srv/pfi-eaps
+sudo -u pfi pm2 start ecosystem.config.js
+sudo -u pfi pm2 save          # ingat daftar proses untuk dinyalakan lagi nanti
+sudo -u pfi pm2 logs pfi-eaps
+```
+
+Supaya ikut hidup setelah server di-reboot, PM2 membuatkan unit systemd-nya sendiri:
+
+```bash
+sudo pm2 startup systemd -u pfi --hp /srv/pfi-eaps
+# perintah di atas mencetak satu baris perintah — jalankan persis seperti yang dicetak
+sudo -u pfi pm2 save
+```
+
+Catatan:
+
+- **`.env` tetap terbaca.** PM2 tidak memuatnya, tapi Next sendiri membaca `.env` dari
+  direktori kerja saat server dinyalakan — dan `cwd` sudah diarahkan ke folder aplikasi.
+- **Satu proses saja** (`instances: 1`, mode fork). Menambah proses Next tidak mempercepat
+  apa pun di sini, sedangkan konversi RIPLAY ke PDF sudah berat di CPU.
+- **Pasang rotasi log**, karena PM2 menulis ke berkas dan bukan ke journald:
+
+  ```bash
+  sudo -u pfi pm2 install pm2-logrotate
+  ```
+
+- Berkas sementara LibreOffice tetap di `/tmp` (tanpa `PrivateTmp` milik systemd) dan tetap
+  dihapus sendiri setiap konversi selesai.
+- Deploy ulang: sesudah `npm run build`, jalankan `sudo -u pfi pm2 restart pfi-eaps`
+  menggantikan `systemctl restart`.
+
+Kalau pengguna `pfi` dibuat sebagai akun sistem tanpa shell, `sudo -u pfi` di atas tetap
+jalan. Yang tidak jalan hanya `su - pfi`; pakai `sudo -u pfi <perintah>` saja.
+
 ## 6. nginx
 
 Konfigurasi yang sudah ada sudah benar. Tiga penyesuaian:
@@ -219,7 +263,7 @@ cd /srv/pfi-eaps
 sudo -u pfi git pull
 sudo -u pfi npm ci
 sudo -u pfi npm run build
-sudo systemctl restart pfi-eaps
+sudo systemctl restart pfi-eaps      # kalau pakai PM2: sudo -u pfi pm2 restart pfi-eaps
 ```
 
 Build baru mengganti nama berkas aset, jadi service worker mendeteksi versi baru dan
