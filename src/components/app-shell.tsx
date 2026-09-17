@@ -13,7 +13,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <NetworkStatus />
       <AppHeader />
 
-      <main className="mx-auto w-full max-w-[1366px] flex-1 px-4 pb-32 pt-6 sm:px-6">
+      <main className="w-full flex-1 px-4 pb-32 pt-6 sm:px-6">
         {children}
       </main>
 

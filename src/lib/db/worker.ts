@@ -20,7 +20,11 @@ import type { DbRequest, DbResponse, Statement } from "./protocol";
  * dimuat dari /sqlite/sqlite3.mjs saat berjalan (lihat scripts/copy-sqlite.mjs),
  * jadi typing dari paket npm tidak ikut terbawa.
  */
-type SqlitePool = { OpfsSAHPoolDb: new (filename: string) => Db };
+type SqlitePool = {
+  OpfsSAHPoolDb: new (filename: string) => Db;
+  /** Salinan mentah satu berkas di pool — dipakai fitur ekspor database. */
+  exportFile: (name: string) => Uint8Array;
+};
 type SqliteApi = {
   installOpfsSAHPoolVfs: (opts: {
     directory?: string;
@@ -44,6 +48,12 @@ type Db = {
 let db: Db | null = null;
 let booting: Promise<Db> | null = null;
 
+/** Nama berkas database di dalam pool OPFS. */
+const DB_FILE = "/pfi-eaps.sqlite3";
+
+/** Disimpan saat pool dibuka; hanya pool yang bisa membaca berkas mentahnya. */
+let activePool: SqlitePool | null = null;
+
 async function open(): Promise<Db> {
   // Spesifier sengaja lewat variabel: berkasnya baru ada saat runtime di
   // public/, bukan modul yang bisa diselesaikan bundler atau TypeScript.
@@ -62,8 +72,9 @@ async function open(): Promise<Db> {
   // berpindah halaman, worker lama kadang belum sepenuhnya dilepas browser,
   // jadi percobaan pertama bisa gagal walau tidak ada tab lain.
   const pool = await acquirePool(sqlite3);
+  activePool = pool;
 
-  const database = new pool.OpfsSAHPoolDb("/pfi-eaps.sqlite3");
+  const database = new pool.OpfsSAHPoolDb(DB_FILE);
 
   database.exec({ sql: "pragma foreign_keys = on" });
   migrate(database);
@@ -175,6 +186,16 @@ self.onmessage = async (event: MessageEvent<DbRequest>) => {
       case "run":
         reply({ id: request.id, ok: true, data: run(database, request.statement) });
         break;
+
+      case "export": {
+        if (!activePool) throw new Error("Database lokal belum terbuka.");
+
+        // Salinan mentah berkas SQLite; bisa dibuka DBeaver atau alat sejenis.
+        const bytes = activePool.exportFile(DB_FILE);
+        const salinan = new Uint8Array(bytes);
+        self.postMessage({ id: request.id, ok: true, data: salinan }, [salinan.buffer]);
+        break;
+      }
 
       case "batch": {
         database.exec({ sql: "begin" });

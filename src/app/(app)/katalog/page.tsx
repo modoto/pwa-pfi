@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { Badge, Card } from "@/components/ui";
-import { formatRupiah } from "@/lib/utils";
+import { formatRupiah, LEBAR_HALAMAN } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Katalog" };
 
@@ -16,7 +16,7 @@ const produk = [
 
 export default function KatalogPage() {
   return (
-    <>
+    <div className={LEBAR_HALAMAN}>
       {/* Baris pencarian: menumpuk di HP, sejajar mulai sm */}
       <div className="flex flex-col gap-3 sm:flex-row">
         <label className="relative flex-1">
@@ -78,6 +78,6 @@ export default function KatalogPage() {
           </Card>
         ))}
       </div>
-    </>
+    </div>
   );
 }

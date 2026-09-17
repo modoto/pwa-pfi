@@ -3,6 +3,7 @@
 import { useActionState, useId, useState } from "react";
 import { Eye, EyeOff, LoaderCircle } from "lucide-react";
 import { loginAction, type LoginFormState } from "@/app/actions/auth";
+import { FIELD_NOMOR_PERANGKAT, nomorPerangkat } from "@/lib/device-number";
 import { cn } from "@/lib/utils";
 
 const inputClass =
@@ -22,8 +23,18 @@ export function LoginForm() {
   const passwordId = useId();
   const errorId = useId();
 
+  /**
+   * Nomor perangkat dibaca saat form dikirim, bukan saat render: nilainya ada
+   * di localStorage/cookie yang hanya bisa dibaca di browser, sedangkan halaman
+   * ini dirender lebih dulu di server.
+   */
+  function kirim(formData: FormData) {
+    formData.set(FIELD_NOMOR_PERANGKAT, nomorPerangkat());
+    formAction(formData);
+  }
+
   return (
-    <form action={formAction} className="flex w-full flex-col gap-6" noValidate>
+    <form action={kirim} className="flex w-full flex-col gap-6" noValidate>
       <h1 className="text-2xl font-bold text-pfi-ink">Masuk ke akun Anda</h1>
       <p className="text-sm text-pfi-muted">Gunakan User ID dan password yang terdaftar.</p>
 

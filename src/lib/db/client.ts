@@ -91,3 +91,28 @@ export function run(sql: string, bind: Statement["bind"] = []) {
 export function batch(statements: Statement[]) {
   return request<{ count: number }>({ type: "batch", statements });
 }
+
+/**
+ * Unduh salinan mentah berkas database.
+ *
+ * Databasenya hidup di OPFS milik browser, jadi tidak ada berkas di disk yang
+ * bisa dibuka DBeaver. Fungsi ini meminta worker menyalin berkasnya lalu
+ * menyimpannya sebagai unduhan biasa.
+ */
+export async function exportDatabase(): Promise<void> {
+  const bytes = await request<Uint8Array>({ type: "export" });
+
+  const stempel = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  const url = URL.createObjectURL(
+    new Blob([bytes as BlobPart], { type: "application/vnd.sqlite3" })
+  );
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `pfi-eaps-${stempel}.sqlite3`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}

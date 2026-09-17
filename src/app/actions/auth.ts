@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { loginRequest, logoutRequest } from "@/lib/api";
 import { createSession, deleteSession, getSession } from "@/lib/session";
+import { FIELD_NOMOR_PERANGKAT, POLA_NOMOR_PERANGKAT } from "@/lib/device-number";
 
 export type LoginFormState = {
   message?: string;
@@ -18,6 +19,10 @@ export async function loginAction(
   const nip = String(formData.get("nip") ?? "").trim();
   const password = String(formData.get("password") ?? "");
 
+  // UUID perangkat dibuat dan disimpan di sisi browser (src/lib/device-number.ts);
+  // server hanya meneruskannya ke API.
+  const deviceNumber = String(formData.get(FIELD_NOMOR_PERANGKAT) ?? "").trim();
+
   const fieldErrors: LoginFormState["fieldErrors"] = {};
   if (!nip) fieldErrors.nip = "User ID wajib diisi.";
   if (!password) fieldErrors.password = "Password wajib diisi.";
@@ -28,7 +33,16 @@ export async function loginAction(
     return { fieldErrors, nip };
   }
 
-  const result = await loginRequest(nip, password);
+  if (!POLA_NOMOR_PERANGKAT.test(deviceNumber)) {
+    return {
+      message:
+        "Nomor perangkat tidak terbaca. Muat ulang halaman ini, lalu coba masuk lagi. " +
+        "Kalau tetap gagal, pastikan penyimpanan situs tidak diblokir peramban.",
+      nip,
+    };
+  }
+
+  const result = await loginRequest(nip, password, deviceNumber);
   if (!result.ok) {
     return { message: result.message, nip };
   }

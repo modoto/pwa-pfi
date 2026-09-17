@@ -13,7 +13,9 @@ export type DbRequest =
   | { id: number; type: "select"; statement: Statement }
   | { id: number; type: "run"; statement: Statement }
   /** Dijalankan dalam satu transaksi — semua berhasil, atau semua dibatalkan. */
-  | { id: number; type: "batch"; statements: Statement[] };
+  | { id: number; type: "batch"; statements: Statement[] }
+  /** Salinan mentah berkas .sqlite3 dari OPFS, untuk diunduh dan diperiksa. */
+  | { id: number; type: "export" };
 
 export type DbResponse =
   | { id: number; ok: true; data: unknown }

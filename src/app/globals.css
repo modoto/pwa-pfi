@@ -68,7 +68,7 @@
   --color-pfi-page: #354a54;
   --color-pfi-page-border: #eeeef0;
 
-  /* Chip status lead — empat kelompok warna */
+  /* Chip status lead — lima kelompok warna */
   --color-status-blue-bg: #eff8ff;
   --color-status-blue-border: #b2ddff;
   --color-status-blue-fg: #175cd3;
@@ -81,6 +81,16 @@
   --color-status-green-bg: #ecfdf3;
   --color-status-green-border: #abefc6;
   --color-status-green-fg: #067647;
+  /* Belum ada di Figma; dipakai status "Drop Manual" yang berakhir negatif. */
+  --color-status-red-bg: #fef3f2;
+  --color-status-red-border: #fecdca;
+  --color-status-red-fg: #b42318;
+
+  /* Kartu pada modal Mulai Proses: biru untuk yang bisa dikerjakan, abu untuk
+     proses yang masih terkunci. */
+  --color-pfi-proses: #3a68ac;
+  --color-pfi-proses-lock: #d9d9d9;
+  --color-pfi-proses-lock-alt: #e6e6e6;
 
   /* Radio terpilih pada form (diperkirakan dari screenshot desain). */
   --color-pfi-radio: #12b76a;
@@ -130,6 +140,59 @@
 }
 @utility mb-safe {
   margin-bottom: max(env(safe-area-inset-bottom), 0px);
+}
+
+/* ---- Dokumen RIPLAY yang dirender docx-preview ----
+   Bawaannya memasang latar abu ala Word; di dalam kartu aplikasi itu
+   mengganggu. Lebar halaman A4 dibiarkan apa adanya supaya tata letak dokumen
+   tidak berubah — wadahnya yang digulir.
+
+   Padding atas-bawah wajib disisakan: header dipasang dengan margin-top
+   negatif dan footer dengan margin-bottom negatif (meniru area margin halaman
+   Word), jadi kalau padding-nya nol keduanya terpotong wadah bergulir. */
+.riplay-doc .docx-wrapper {
+  background: transparent;
+  padding: 2rem 0;
+  gap: 1.5rem;
+}
+
+.riplay-doc .docx-wrapper > section.docx {
+  box-shadow: none;
+  border: 1px solid var(--color-pfi-hairline);
+  margin: 0 auto;
+}
+
+/* Cetak / simpan sebagai PDF: hanya dokumen RIPLAY yang ikut tercetak.
+   Kelas `cetak-riplay` dipasang di <body> tepat sebelum window.print(). */
+@media print {
+  body.cetak-riplay * {
+    visibility: hidden;
+  }
+
+  body.cetak-riplay .riplay-cetak,
+  body.cetak-riplay .riplay-cetak * {
+    visibility: visible;
+  }
+
+  body.cetak-riplay .riplay-cetak {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    max-height: none;
+    padding: 0;
+    overflow: visible;
+  }
+
+  /* Bingkai dan jarak antar halaman tidak perlu ikut tercetak. */
+  body.cetak-riplay .riplay-doc .docx-wrapper {
+    padding: 0;
+    gap: 0;
+  }
+
+  body.cetak-riplay .riplay-doc .docx-wrapper > section.docx {
+    border: 0;
+    break-after: page;
+  }
 }
 
 /* Kartu dasar dipakai di banyak halaman */

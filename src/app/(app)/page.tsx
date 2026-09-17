@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cn, LEBAR_HALAMAN } from "@/lib/utils";
 import { PerformanceCard } from "@/components/dashboard/performance";
 import { NewsSection } from "@/components/dashboard/news";
 import { Panel, SectionHeader, StatRowCard } from "@/components/dashboard/primitives";
@@ -14,7 +15,7 @@ export default function BerandaPage() {
   const data = getDashboardData();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className={cn(LEBAR_HALAMAN, "flex flex-col gap-6")}>
       {/* Performa MTD & YTD */}
       <div className="grid gap-6 lg:grid-cols-2">
         {data.performance.map((block) => (

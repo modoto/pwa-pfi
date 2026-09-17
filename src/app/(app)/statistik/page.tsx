@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Activity, ShoppingBag, Target, Users } from "lucide-react";
 import { Card, Section, StatCard } from "@/components/ui";
-import { formatRupiah } from "@/lib/utils";
+import { formatRupiah, LEBAR_HALAMAN } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Statistik" };
 
@@ -25,7 +25,7 @@ const kanal = [
 
 export default function StatistikPage() {
   return (
-    <>
+    <div className={LEBAR_HALAMAN}>
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard label="Omzet bulan ini" value={formatRupiah(96400000)} delta="+18,2%" icon={ShoppingBag} />
         <StatCard label="Pengunjung" value="12.4rb" delta="+6,7%" icon={Users} />
@@ -86,6 +86,6 @@ export default function StatistikPage() {
           tajam di layar HP maupun tablet tanpa library chart tambahan.
         </Card>
       </Section>
-    </>
+    </div>
   );
 }

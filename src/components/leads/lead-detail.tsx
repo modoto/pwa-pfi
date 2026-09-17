@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { ChevronLeft, Mail, Pencil, Rocket, Star, User, UserCog } from "lucide-react";
 import { ActivityList } from "@/components/leads/activity-list";
+import { ProcessModal } from "@/components/leads/process-modal";
+import { StatusModal } from "@/components/leads/status-modal";
 import { cn } from "@/lib/utils";
 import { STATUS_TONE, type LeadStatus } from "@/lib/leads-data";
 import {
@@ -17,6 +19,7 @@ const TONE_CLASS = {
   blue: "bg-status-blue-bg border-status-blue-border text-status-blue-fg",
   purple: "bg-status-purple-bg border-status-purple-border text-status-purple-fg",
   orange: "bg-status-orange-bg border-status-orange-border text-status-orange-fg",
+  red: "bg-status-red-bg border-status-red-border text-status-red-fg",
   green: "bg-status-green-bg border-status-green-border text-status-green-fg",
 } as const;
 
@@ -144,6 +147,8 @@ export function LeadDetail({
   const [state, setState] = useState<"loading" | "ready" | "missing" | "error">("loading");
   const [message, setMessage] = useState("");
   const [tab, setTab] = useState<"profil" | "aktivitas">("profil");
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [processOpen, setProcessOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -193,41 +198,49 @@ export function LeadDetail({
   return (
     <div className="flex flex-col gap-6">
       {/* ---------- Bar aksi ---------- */}
-      <div className="-mx-4 flex flex-col gap-3 border-b border-pfi-hairline bg-white px-4 py-3 sm:-mx-6 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div className="flex min-w-0 items-center gap-4">
-          <Link
-            href="/leads"
-            aria-label="Kembali ke daftar leads"
-            className="grid size-9 shrink-0 place-items-center rounded-[10px] border border-pfi-line bg-white text-pfi-heading transition hover:bg-pfi-hairline"
-          >
-            <ChevronLeft className="size-5" aria-hidden />
-          </Link>
-          <h1 className="truncate text-xl font-bold text-pfi-heading">Detail Lead</h1>
-        </div>
+      {/* Header halaman: tidak ada header agen di grup (fullscreen), jadi bar
+          inilah yang menempel di puncak layar. `pt-safe` sengaja dipisah dari
+          `py-4` — bila satu elemen, padding atasnya jadi nol di perangkat
+          tanpa notch. */}
+      <div className="pt-safe sticky top-0 z-30 -mx-4 border-b border-pfi-hairline bg-white sm:-mx-6">
+        <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
+          <div className="flex min-w-0 items-center gap-4">
+            <Link
+              href="/leads"
+              aria-label="Kembali ke daftar leads"
+              className="grid size-12 shrink-0 place-items-center rounded-[10px] border border-pfi-line bg-white text-pfi-heading transition hover:bg-pfi-hairline"
+            >
+              <ChevronLeft className="size-6" aria-hidden />
+            </Link>
+            <h1 className="truncate text-xl font-bold text-pfi-heading">Detail Lead</h1>
+          </div>
 
-        {/* TODO: ketiga aksi ini menunggu desain modal dan endpoint-nya. */}
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            className="flex items-center gap-3 rounded-[10px] border border-pfi-link bg-white px-4 py-2.5 text-sm font-medium text-pfi-link transition hover:bg-pfi-tint"
-          >
-            <Mail className="size-4" aria-hidden />
-            Kirim Pesan
-          </button>
-          <button
-            type="button"
-            className="flex items-center gap-3 rounded-[10px] border border-pfi-link bg-white px-4 py-2.5 text-sm font-medium text-pfi-link transition hover:bg-pfi-tint"
-          >
-            <Pencil className="size-4" aria-hidden />
-            Ubah Status
-          </button>
-          <button
-            type="button"
-            className="flex items-center gap-3 rounded-[10px] bg-pfi-orange px-4 py-2.5 text-sm font-medium text-white transition hover:bg-pfi-orange-dark"
-          >
-            <Rocket className="size-4" aria-hidden />
-            Mulai Proses
-          </button>
+          {/* TODO: Kirim Pesan masih menunggu desain modal dan endpoint-nya. */}
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="flex items-center gap-3 rounded-[10px] border border-pfi-link bg-white px-4 py-2.5 text-sm font-medium text-pfi-link transition hover:bg-pfi-tint"
+            >
+              <Mail className="size-4" aria-hidden />
+              Kirim Pesan
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusOpen(true)}
+              className="flex items-center gap-3 rounded-[10px] border border-pfi-link bg-white px-4 py-2.5 text-sm font-medium text-pfi-link transition hover:bg-pfi-tint"
+            >
+              <Pencil className="size-4" aria-hidden />
+              Ubah Status
+            </button>
+            <button
+              type="button"
+              onClick={() => setProcessOpen(true)}
+              className="flex items-center gap-3 rounded-[10px] bg-pfi-orange px-4 py-2.5 text-sm font-medium text-white transition hover:bg-pfi-orange-dark"
+            >
+              <Rocket className="size-4" aria-hidden />
+              Mulai Proses
+            </button>
+          </div>
         </div>
       </div>
 
@@ -316,6 +329,7 @@ export function LeadDetail({
                 <StatusBadge status={lead.status} />
               </Field>
               <Field label="Keterangan">{lead.keterangan}</Field>
+              <Field label="Keterangan Status">{lead.keterangan_status}</Field>
             </div>
           </Card>
 
@@ -425,6 +439,27 @@ export function LeadDetail({
             </div>
           </Card>
         </>
+      )}
+
+      {statusOpen && (
+        <StatusModal
+          leadId={lead.id}
+          leadName={fullName(lead)}
+          leadCode={lead.lead_code}
+          currentStatus={lead.status}
+          agentName={agentName}
+          onClose={() => setStatusOpen(false)}
+          onSaved={load}
+        />
+      )}
+
+      {processOpen && (
+        <ProcessModal
+          leadId={lead.id}
+          leadName={fullName(lead)}
+          leadCode={lead.lead_code}
+          onClose={() => setProcessOpen(false)}
+        />
       )}
     </div>
   );

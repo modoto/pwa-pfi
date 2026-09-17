@@ -213,4 +213,229 @@ MIGRATIONS.push({
   ],
 });
 
+MIGRATIONS.push({
+  version: 4,
+  name: "keterangan_status_lead",
+  statements: [
+    // Keterangan terakhir dari modal Ubah Status Lead. Terpisah dari kolom
+    // `keterangan` milik lead itu sendiri, yang isinya bukan soal perubahan status.
+    `alter table leads add column keterangan_status text`,
+  ],
+});
+
+MIGRATIONS.push({
+  version: 5,
+  name: "proses_lead",
+  statements: [
+    // Tiga proses pada modal Mulai Proses. Satu baris per lead per proses;
+    // halaman masing-masing proses belum ada, jadi untuk sekarang barisnya
+    // hanya menyimpan status yang ditampilkan di modal.
+    `create table if not exists lead_processes (
+      id                text primary key,
+      server_id         integer,
+      lead_id           text not null,
+
+      jenis             text not null,
+      status            text not null,
+      dimulai_at        text,
+      selesai_at        text,
+
+      created_by        text,
+      updated_by        text,
+
+      sync_status       text not null default 'pending',
+      created_at        text not null,
+      updated_at        text not null,
+      server_updated_at text,
+      deleted_at        text
+    )`,
+    `create unique index if not exists idx_lead_processes_lead_jenis
+       on lead_processes (lead_id, jenis)`,
+
+    // Baris awal untuk lead yang sudah ada. Lead yang dibuat setelah ini
+    // dilengkapi `ensureProcesses` di processes-repo.ts.
+    `insert into lead_processes (id, lead_id, jenis, status, sync_status, created_at, updated_at)
+     select lower(hex(randomblob(16))), l.id, j.jenis, j.status, 'pending',
+            l.created_at, l.updated_at
+     from leads l
+     join (select 'analisis' as jenis, 'Belum dimulai' as status
+           union all select 'ilustrasi', 'Belum dimulai'
+           union all select 'eapp', 'Belum dibuka') j
+     where not exists (
+       select 1 from lead_processes p where p.lead_id = l.id and p.jenis = j.jenis
+     )`,
+  ],
+});
+
+MIGRATIONS.push({
+  version: 6,
+  name: "prioritas_fna",
+  statements: [
+    // Empat slot prioritas keuangan pada langkah kedua FnA. Satu baris per
+    // slot terisi; `topik` merujuk `key` di src/lib/fna-data.ts.
+    `create table if not exists lead_fna_priorities (
+      id                text primary key,
+      server_id         integer,
+      lead_id           text not null,
+
+      urutan            integer not null,
+      topik             text not null,
+
+      created_by        text,
+      updated_by        text,
+
+      sync_status       text not null default 'pending',
+      created_at        text not null,
+      updated_at        text not null,
+      server_updated_at text,
+      deleted_at        text
+    )`,
+    `create unique index if not exists idx_lead_fna_priorities_lead_urutan
+       on lead_fna_priorities (lead_id, urutan)`,
+  ],
+});
+
+MIGRATIONS.push({
+  version: 7,
+  name: "jawaban_fna",
+  statements: [
+    // Jawaban kuesioner FnA. `topik` merujuk key di src/lib/fna-data.ts dan
+    // `pertanyaan` merujuk key di src/lib/fna-questions.ts.
+    `create table if not exists lead_fna_answers (
+      id                text primary key,
+      server_id         integer,
+      lead_id           text not null,
+
+      topik             text not null,
+      pertanyaan        text not null,
+      jawaban           text not null,
+
+      created_by        text,
+      updated_by        text,
+
+      sync_status       text not null default 'pending',
+      created_at        text not null,
+      updated_at        text not null,
+      server_updated_at text,
+      deleted_at        text
+    )`,
+    `create unique index if not exists idx_lead_fna_answers_lead_topik_pertanyaan
+       on lead_fna_answers (lead_id, topik, pertanyaan)`,
+  ],
+});
+
+MIGRATIONS.push({
+  version: 8,
+  name: "isian_ilustrasi",
+  statements: [
+    // Isian formulir Sales Illustration, satu baris per field.
+    //
+    // Bentuk kunci-nilai dipilih karena alurnya delapan langkah dengan puluhan
+    // field dan desainnya datang bertahap — langkah baru tidak perlu migrasi.
+    // `langkah` = slug langkah (lihat src/lib/illustration-data.ts),
+    // `field` = nama field dalam snake_case.
+    `create table if not exists lead_illustration_fields (
+      id                text primary key,
+      server_id         integer,
+      lead_id           text not null,
+
+      langkah           text not null,
+      field             text not null,
+      nilai             text,
+
+      created_by        text,
+      updated_by        text,
+
+      sync_status       text not null default 'pending',
+      created_at        text not null,
+      updated_at        text not null,
+      server_updated_at text,
+      deleted_at        text
+    )`,
+    `create unique index if not exists idx_lead_illustration_fields_unik
+       on lead_illustration_fields (lead_id, langkah, field)`,
+  ],
+});
+
+MIGRATIONS.push({
+  version: 9,
+  name: "catatan_master_data",
+  statements: [
+    // Riwayat penarikan master data. Tabel masternya sendiri tidak dibuat di
+    // sini: kolomnya mengikuti bentuk respons API dan baru diketahui saat
+    // ditarik (lihat src/lib/db/master-repo.ts).
+    `create table if not exists master_syncs (
+      nama_tabel   text primary key,
+      jumlah_baris integer,
+      ditarik_at   text,
+      pesan_error  text
+    )`,
+  ],
+});
+
+MIGRATIONS.push({
+  version: 10,
+  name: "rename_tabel_master",
+  statements: [
+    // Tiga master berganti nama tabel (permintaan user 2026-09-02). Tabel lama
+    // dibuang, bukan diganti nama: isinya dibuat ulang penuh pada penarikan
+    // berikutnya, jadi tidak ada data yang benar-benar hilang.
+    `drop table if exists cms_contents`,
+    `drop table if exists statuses`,
+    `drop table if exists fields`,
+    `delete from master_syncs where nama_tabel in ('cms_contents', 'statuses', 'fields')`,
+  ],
+});
+
+MIGRATIONS.push({
+  version: 11,
+  name: "master_data_api_2026_09_11",
+  statements: [
+    // Endpoint-nya tidak ada lagi di API per 2026-09-11, jadi tabel lokalnya
+    // tidak akan pernah diperbarui. Dibuang supaya tidak terbaca sebagai data
+    // yang masih berlaku.
+    `drop table if exists audit_trails`,
+    `drop table if exists roles`,
+    `drop table if exists role_positions`,
+    `delete from master_syncs where nama_tabel in ('audit_trails', 'roles', 'role_positions')`,
+  ],
+});
+
+MIGRATIONS.push({
+  version: 12,
+  name: "master_data_api_2026_09_16",
+  statements: [
+    // Kategori dan sumber lead pindah ke `msfields` (fieldKey
+    // lead_category_mobile_hda / lead_category_mobile_banca / lead_source_mobile
+    // / lead_source); ketiga endpoint lamanya balas 404 per 2026-09-16.
+    `drop table if exists hda_categories`,
+    `drop table if exists banca_categories`,
+    `drop table if exists lead_sources`,
+    `delete from master_syncs where nama_tabel in ('hda_categories', 'banca_categories', 'lead_sources')`,
+  ],
+});
+
+MIGRATIONS.push({
+  version: 13,
+  name: "master_syncs_checksum",
+  statements: [
+    // Checksum per tabel dari /api/mobile/SyncCheckSum/sync (2026-09-16), untuk
+    // melewati master yang isinya tidak berubah saat menarik ulang.
+    `alter table master_syncs add column checksum text`,
+  ],
+});
+
+MIGRATIONS.push({
+  version: 14,
+  name: "app_settings",
+  statements: [
+    // Penanda kecil yang tidak ikut sinkron, mis. apakah data contoh lead
+    // sudah pernah disemai (supaya tidak terisi ulang setelah dihapus).
+    `create table if not exists app_settings (
+      kunci text primary key,
+      nilai text
+    )`,
+  ],
+});
+
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

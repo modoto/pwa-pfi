@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -15,21 +15,73 @@ import {
 import { cn } from "@/lib/utils";
 import { BankStaffModal } from "@/components/leads/bank-staff-modal";
 import { createLead, updateLead, type LeadInput, type LeadRow } from "@/lib/db/leads-repo";
-import { LEAD_CATEGORIES } from "@/lib/leads-data";
+import { listFields, type MasterField } from "@/lib/db/master-repo";
 import {
   KODE_CABANG,
   SKOR_FIELDS,
-  SUMBER_LEAD,
   hitungSkorPrediksi,
   hitungUsia,
   type BankStaff,
   type SkorKey,
 } from "@/lib/lead-form-data";
 
+/**
+ * Kategori dan sumber lead ada di master `msfields`, dipisah per channel agen
+ * (per 2026-09-16; sebelumnya endpoint GetCategoryHDA / GetCategoryBanca /
+ * GetSourceByParentId, yang kini 404). Sumber menunjuk kategorinya lewat
+ * `parent_id`.
+ */
+const FIELD_KEY_CHANNEL = {
+  banca: { kategori: "lead_category_mobile_banca", sumber: "lead_source" },
+  hda: { kategori: "lead_category_mobile_hda", sumber: "lead_source_mobile" },
+} as const;
+
+const fieldKeys = (channel: string) =>
+  /banca/i.test(channel) ? FIELD_KEY_CHANNEL.banca : FIELD_KEY_CHANNEL.hda;
+
 const inputClass =
   "w-full rounded-[10px] border border-pfi-line bg-white px-3.5 py-3 text-sm text-pfi-heading " +
   "outline-none transition placeholder:text-pfi-search " +
   "focus:border-pfi-link focus:ring-2 focus:ring-pfi-link/15";
+
+const selectClass = cn(
+  inputClass,
+  "appearance-none bg-[url('/leads/arrow-down.svg')] bg-[length:24px_24px] bg-[right_0.75rem_center] bg-no-repeat pr-12"
+);
+
+/**
+ * Dropdown dari master lokal. `null` berarti tabelnya belum pernah ditarik,
+ * jadi pilihannya dikunci dengan keterangan — bukan diisi daftar karangan.
+ */
+function masterDropdown(
+  value: string,
+  onChange: (nilai: string) => void,
+  placeholder: string,
+  options: MasterField[] | null,
+  invalid: boolean
+) {
+  const daftar = options ?? [];
+  const teks = daftar.map((row) => row.field_text ?? "").filter(Boolean);
+
+  return (
+    <select
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      disabled={options === null}
+      data-error={invalid}
+      className={cn(selectClass, invalid && "border-pfi-down-fg")}
+    >
+      <option value="">{options === null ? "Master data belum ditarik" : placeholder}</option>
+      {/* Nilai tersimpan yang tidak ada lagi di master tetap ditampilkan. */}
+      {value && !teks.includes(value) && <option value={value}>{value}</option>}
+      {teks.map((option) => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 const readonlyClass =
   "w-full rounded-[10px] border border-pfi-line bg-pfi-hairline px-3.5 py-3 text-sm text-pfi-heading";
@@ -95,7 +147,7 @@ const num = (value: number | null | undefined) => (value === null || value === u
  * Saat `lead` diisi, form berjalan dalam mode ubah — desain khusus untuk edit
  * belum ada, jadi tata letaknya sengaja sama persis.
  */
-export function LeadForm({ lead }: { lead?: LeadRow }) {
+export function LeadForm({ lead, channel = "" }: { lead?: LeadRow; channel?: string }) {
   const editing = Boolean(lead);
 
   const [namaDepan, setNamaDepan] = useState(text(lead?.nama_depan));
@@ -134,6 +186,47 @@ export function LeadForm({ lead }: { lead?: LeadRow }) {
 
   const [errors, setErrors] = useState<Errors>({});
   const [notice, setNotice] = useState("");
+
+  // Pilihan kategori dan sumber dari master lokal; `null` = belum ditarik.
+  const [kategoriOptions, setKategoriOptions] = useState<MasterField[] | null>([]);
+  const [sumberOptions, setSumberOptions] = useState<MasterField[] | null>([]);
+
+  const muatMaster = useCallback(async () => {
+    const kunci = fieldKeys(channel);
+    const [kategoriRows, sumberRows] = await Promise.all([
+      listFields(kunci.kategori),
+      listFields(kunci.sumber),
+    ]);
+    setKategoriOptions(kategoriRows);
+    setSumberOptions(sumberRows);
+  }, [channel]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- pemuatan awal dari SQLite
+    void muatMaster().catch(() => {
+      setKategoriOptions(null);
+      setSumberOptions(null);
+    });
+  }, [muatMaster]);
+
+  // Sumber hanya yang menunjuk kategori terpilih.
+  const kategoriTerpilih = (kategoriOptions ?? []).find((row) => row.field_text === kategori);
+  const sumberPilihan =
+    sumberOptions === null
+      ? null
+      : (sumberOptions ?? []).filter(
+          (row) => !kategoriTerpilih || String(row.parent_id ?? "") === String(kategoriTerpilih.id)
+        );
+
+  /** Ganti kategori mengosongkan sumber yang tidak lagi cocok. */
+  function pilihKategori(nilai: string) {
+    setKategori(nilai);
+    const induk = (kategoriOptions ?? []).find((row) => row.field_text === nilai);
+    const masihCocok = (sumberOptions ?? []).some(
+      (row) => row.field_text === sumber && (!induk || String(row.parent_id ?? "") === String(induk.id))
+    );
+    if (!masihCocok) setSumber("");
+  }
 
   // Usia dan skor prediksi selalu ikut isian lain — di desain keduanya memang
   // tidak bisa diketik langsung.
@@ -232,35 +325,41 @@ export function LeadForm({ lead }: { lead?: LeadRow }) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6" noValidate>
       {/* ---------- Bar aksi ---------- */}
-      {/* Di HP judul dan tombol dipisah dua baris — satu baris membuat judul terpotong. */}
-      <div className="-mx-4 flex flex-col gap-3 border-b border-pfi-hairline bg-white px-4 py-3 sm:-mx-6 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div className="flex min-w-0 items-center gap-4">
-          <Link
-            href={cancelHref}
-            aria-label="Kembali"
-            className="grid size-9 shrink-0 place-items-center rounded-[10px] border border-pfi-line bg-white text-pfi-heading transition hover:bg-pfi-hairline"
-          >
-            <ChevronLeft className="size-5" aria-hidden />
-          </Link>
-          <h1 className="truncate text-xl font-bold text-pfi-heading">
-            {editing ? "Edit Lead" : "Tambah Lead"}
-          </h1>
-        </div>
+      {/* Header halaman, sama seperti Detail Lead: tidak ada header agen di grup
+          (fullscreen), jadi bar ini yang menempel di puncak layar. `pt-safe`
+          dipisah dari `py-4` — bila satu elemen, padding atasnya jadi nol di
+          perangkat tanpa notch. Di HP judul dan tombol dipisah dua baris —
+          satu baris membuat judul terpotong. */}
+      <div className="pt-safe sticky top-0 z-30 -mx-4 border-b border-pfi-hairline bg-white sm:-mx-6">
+        <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
+          <div className="flex min-w-0 items-center gap-4">
+            <Link
+              href={cancelHref}
+              aria-label="Kembali"
+              className="grid size-12 shrink-0 place-items-center rounded-[10px] border border-pfi-line bg-white text-pfi-heading transition hover:bg-pfi-hairline"
+            >
+              <ChevronLeft className="size-6" aria-hidden />
+            </Link>
+            <h1 className="truncate text-xl font-bold text-pfi-heading">
+              {editing ? "Edit Lead" : "Tambah Lead"}
+            </h1>
+          </div>
 
-        <div className="flex shrink-0 items-center gap-3">
-          <Link
-            href={cancelHref}
-            className="flex-1 rounded-[10px] border border-pfi-line bg-white px-5 py-2.5 text-center text-sm font-medium text-pfi-heading transition hover:bg-pfi-hairline sm:flex-none"
-          >
-            Batalkan
-          </Link>
-          <button
-            type="submit"
-            disabled={saving}
-            className="flex-1 rounded-[10px] bg-pfi-orange px-6 py-2.5 text-sm font-medium text-white transition hover:bg-pfi-orange-dark disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
-          >
-            {saving ? "Menyimpan …" : editing ? "Simpan Perubahan" : "Simpan"}
-          </button>
+          <div className="flex shrink-0 items-center gap-3">
+            <Link
+              href={cancelHref}
+              className="flex-1 rounded-[10px] border border-pfi-line bg-white px-5 py-2.5 text-center text-sm font-medium text-pfi-heading transition hover:bg-pfi-hairline sm:flex-none"
+            >
+              Batalkan
+            </Link>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 rounded-[10px] bg-pfi-orange px-6 py-2.5 text-sm font-medium text-white transition hover:bg-pfi-orange-dark disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
+            >
+              {saving ? "Menyimpan …" : editing ? "Simpan Perubahan" : "Simpan"}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -423,35 +522,23 @@ export function LeadForm({ lead }: { lead?: LeadRow }) {
           </Field>
 
           <Field label="Kategori" required error={errors.kategori}>
-            <select
-              value={kategori}
-              onChange={(e) => setKategori(e.target.value)}
-              data-error={Boolean(errors.kategori)}
-              className={cn(inputClass, "appearance-none bg-[url('/leads/arrow-down.svg')] bg-[length:24px_24px] bg-[right_0.75rem_center] bg-no-repeat pr-12", errors.kategori && "border-pfi-down-fg")}
-            >
-              <option value="">Pilih kategori</option>
-              {LEAD_CATEGORIES.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
+            {masterDropdown(
+              kategori,
+              pilihKategori,
+              "Pilih kategori",
+              kategoriOptions,
+              Boolean(errors.kategori)
+            )}
           </Field>
 
           <Field label="Sumber" required error={errors.sumber}>
-            <select
-              value={sumber}
-              onChange={(e) => setSumber(e.target.value)}
-              data-error={Boolean(errors.sumber)}
-              className={cn(inputClass, "appearance-none bg-[url('/leads/arrow-down.svg')] bg-[length:24px_24px] bg-[right_0.75rem_center] bg-no-repeat pr-12", errors.sumber && "border-pfi-down-fg")}
-            >
-              <option value="">Pilih sumber</option>
-              {SUMBER_LEAD.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
+            {masterDropdown(
+              sumber,
+              setSumber,
+              kategori ? "Pilih sumber" : "Pilih kategori dulu",
+              sumberPilihan,
+              Boolean(errors.sumber)
+            )}
           </Field>
 
           <Field label="Nama Bank Staff" required error={errors.bankStaff} className="relative">

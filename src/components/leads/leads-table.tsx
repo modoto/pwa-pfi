@@ -24,6 +24,7 @@ const TONE_CLASS = {
   blue: "bg-status-blue-bg border-status-blue-border text-status-blue-fg",
   purple: "bg-status-purple-bg border-status-purple-border text-status-purple-fg",
   orange: "bg-status-orange-bg border-status-orange-border text-status-orange-fg",
+  red: "bg-status-red-bg border-status-red-border text-status-red-fg",
   green: "bg-status-green-bg border-status-green-border text-status-green-fg",
 } as const;
 
@@ -32,7 +33,7 @@ function StatusBadge({ status }: { status: LeadStatus }) {
     <span
       className={cn(
         "inline-flex items-center justify-center rounded-[60px] border px-2.5 py-1.5 text-sm font-medium whitespace-nowrap",
-        TONE_CLASS[STATUS_TONE[status]]
+        TONE_CLASS[STATUS_TONE[status] ?? "blue"]
       )}
     >
       {status}
@@ -310,7 +311,10 @@ export function LeadsTable() {
       {/* Tabel */}
       <div className="overflow-hidden rounded-[14px] border border-pfi-hairline bg-white">
         <div className="overflow-x-auto">
-          <div className="min-w-[1180px]">
+          {/* `w-max` membuat pembungkus selebar isinya (jumlah lebar kolom),
+              `min-w-full` menjaganya tetap selebar layar saat ada ruang lebih.
+              Tanpa itu latar baris kepala berhenti sebelum kolom terakhir. */}
+          <div className="w-max min-w-full">
             <div className="flex items-center border-b border-pfi-hairline bg-pfi-thead p-2.5">
               {COLUMNS.map((column) => (
                 <div

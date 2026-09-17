@@ -5,20 +5,42 @@
  * masih dari sini. Bentuk tipenya disiapkan agar mudah ditukar nanti.
  */
 
+/**
+ * Status lead. Urutannya mengikuti master `GetAllStatus`
+ * (`groupStatus: "lead_status"`, 16 status per 2026-09-16); "On Progress"
+ * ditambahkan karena itu ejaan di desain Figma sedangkan API menulis
+ * "In Progress" — keduanya bisa muncul di data lokal.
+ */
 export const LEAD_STATUSES = [
   "New",
   "Contacted",
+  "In Progress",
   "On Progress",
   "Illustration",
-  "Application",
   "Submitted",
+  "Application",
   "Pending Quote",
   "Pending Proposal",
   "Pending for Payment",
+  "Waiting for UW Approval",
+  "Declined",
+  "Postpone",
   "Issued",
+  "Drop",
+  "Drop Manual",
+  "Drop Auto",
 ] as const;
 
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
+
+/**
+ * Pilihan pada modal Ubah Status Lead, persis dua opsi di desain.
+ *
+ * Bukan seluruh `LEAD_STATUSES`: status lain berpindah sendiri mengikuti proses
+ * (ilustrasi, pengajuan, pembayaran), bukan dipilih manual oleh agen. Aturan
+ * transisi yang sebenarnya masih menunggu konfirmasi bisnis.
+ */
+export const LEAD_STATUS_CHOICES = ["Contacted", "Drop Manual"] as const;
 
 export const LEAD_CATEGORIES = ["Referral", "Natural Market"] as const;
 export type LeadCategory = (typeof LEAD_CATEGORIES)[number];
@@ -36,10 +58,17 @@ export type Lead = {
   inforceDate: string | null;
 };
 
-/** Kelompok warna chip status, mengikuti empat varian di desain. */
-export const STATUS_TONE: Record<LeadStatus, "blue" | "purple" | "orange" | "green"> = {
+export type StatusTone = "blue" | "purple" | "orange" | "green" | "red";
+
+/**
+ * Kelompok warna chip status: empat varian desain, plus merah untuk drop.
+ * Kuncinya sengaja `string` — status bisa datang dari API dengan nama yang
+ * belum dikenal, dan pemakainya memakai "blue" sebagai cadangan.
+ */
+export const STATUS_TONE: Record<string, StatusTone> = {
   New: "blue",
   Contacted: "blue",
+  "In Progress": "blue",
   "On Progress": "blue",
   Illustration: "purple",
   Application: "purple",
@@ -47,7 +76,13 @@ export const STATUS_TONE: Record<LeadStatus, "blue" | "purple" | "orange" | "gre
   "Pending Quote": "orange",
   "Pending Proposal": "orange",
   "Pending for Payment": "orange",
+  "Waiting for UW Approval": "orange",
+  Postpone: "orange",
   Issued: "green",
+  Declined: "red",
+  Drop: "red",
+  "Drop Manual": "red",
+  "Drop Auto": "red",
 };
 
 /** Sepuluh baris pertama persis seperti pada desain Figma. */

@@ -19,6 +19,9 @@ export type Session = {
   fullName: string;
   role: string;
   roleId: number;
+  /** Channel agen ("HDA" / "Banca"); menentukan kategori dan sumber lead. */
+  channel: string;
+  channelId: number;
   /** Detik epoch, hasil klaim `exp` di JWT. */
   expiresAt: number;
 };
@@ -52,6 +55,8 @@ export async function createSession(data: LoginData) {
     fullName: data.fullName,
     role: data.role,
     roleId: data.roleId,
+    channel: data.channel ?? "",
+    channelId: data.channelId ?? 0,
     expiresAt,
   };
 

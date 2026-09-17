@@ -45,20 +45,54 @@ export const SKOR_FIELDS = [
 
 export type SkorKey = (typeof SKOR_FIELDS)[number]["key"];
 
-/** Hitung usia dalam tahun penuh dari tanggal lahir (format input date: yyyy-mm-dd). */
-export function hitungUsia(tanggalLahir: string): string {
+const SEHARI = 24 * 60 * 60 * 1000;
+
+/** Tengah hari UTC, supaya selisih hari tidak terpengaruh zona waktu. */
+const hariUtc = (tahun: number, bulan: number, tanggal: number) =>
+  Date.UTC(tahun, bulan, tanggal, 12);
+
+/**
+ * Usia menurut **ulang tahun terdekat** (nearest birthday), bukan ulang tahun
+ * terakhir: bila jarak dari ulang tahun terakhir sudah lewat setengah tahun,
+ * usianya dibulatkan ke atas.
+ *
+ * Rumusnya menyalin kalkulator produk (MSL.xlsm / MAML.xlsm `input!E16`):
+ *
+ *     DATEDIF(DoB; Tanggal; "Y") + IF(DATEDIF(DoB; Tanggal; "yd") > 365/2; 1)
+ *
+ * Contoh: lahir 2 Oktober 1990, dihitung 16 September 2026 → 35 tahun 349 hari
+ * → **36 tahun**. Nilai ini yang dipakai seluruh aplikasi, termasuk masukan
+ * mesin proyeksi dan pemeriksaan batas usia produk, supaya hasilnya sama
+ * dengan workbook.
+ *
+ * Catatan: `age` yang dikirim API lead memakai ulang tahun terakhir, jadi
+ * bisa berbeda satu tahun dengan angka di sini.
+ *
+ * @param tanggalLahir format input date (yyyy-mm-dd)
+ * @param pada tanggal acuan; bawaannya hari ini
+ */
+export function hitungUsia(tanggalLahir: string, pada: Date = new Date()): string {
   if (!tanggalLahir) return "";
 
   const lahir = new Date(tanggalLahir);
   if (Number.isNaN(lahir.getTime())) return "";
 
-  const sekarang = new Date();
-  let usia = sekarang.getFullYear() - lahir.getFullYear();
+  const [tahunLahir, bulanLahir, tanggalLahirHari] = [
+    lahir.getUTCFullYear(),
+    lahir.getUTCMonth(),
+    lahir.getUTCDate(),
+  ];
 
-  const belumUlangTahun =
-    sekarang.getMonth() < lahir.getMonth() ||
-    (sekarang.getMonth() === lahir.getMonth() && sekarang.getDate() < lahir.getDate());
-  if (belumUlangTahun) usia -= 1;
+  const acuan = hariUtc(pada.getFullYear(), pada.getMonth(), pada.getDate());
+
+  // Tahun penuh (DATEDIF "Y").
+  let usia = pada.getFullYear() - tahunLahir;
+  if (acuan < hariUtc(pada.getFullYear(), bulanLahir, tanggalLahirHari)) usia -= 1;
+
+  // Sisa hari sejak ulang tahun terakhir (DATEDIF "yd").
+  const ulangTahunTerakhir = hariUtc(tahunLahir + usia, bulanLahir, tanggalLahirHari);
+  const sisaHari = Math.floor((acuan - ulangTahunTerakhir) / SEHARI);
+  if (sisaHari > 365 / 2) usia += 1;
 
   return usia >= 0 && usia < 130 ? String(usia) : "";
 }

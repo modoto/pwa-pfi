@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LEBAR_HALAMAN } from "@/lib/utils";
 import {
   Bell,
   ChevronRight,
+  Database,
   LogOut,
   Moon,
   ShieldCheck,
@@ -11,6 +13,9 @@ import {
   WifiOff,
 } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
+import { LeadsMaintenance } from "@/components/leads-maintenance";
+import { MasterDataSync } from "@/components/master-data-sync";
+import { exportDatabase } from "@/lib/db/client";
 import { Badge, Card, Section } from "@/components/ui";
 
 type PwaStatus = {
@@ -24,6 +29,23 @@ export default function ProfilPage() {
   const [notifikasi, setNotifikasi] = useState(true);
   const [hematData, setHematData] = useState(false);
   const [status, setStatus] = useState<PwaStatus | null>(null);
+  const [mengekspor, setMengekspor] = useState(false);
+  const [eksporError, setEksporError] = useState("");
+
+  async function unduhDatabase() {
+    setMengekspor(true);
+    setEksporError("");
+
+    try {
+      await exportDatabase();
+    } catch (error) {
+      setEksporError(
+        error instanceof Error ? error.message : "Gagal menyalin database lokal."
+      );
+    } finally {
+      setMengekspor(false);
+    }
+  }
 
   useEffect(() => {
     const read = () =>
@@ -48,7 +70,7 @@ export default function ProfilPage() {
   }, []);
 
   return (
-    <>
+    <div className={LEBAR_HALAMAN}>
       {/* Profil: menumpuk di HP, sejajar mulai sm */}
       <Card className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
         <span className="grid size-20 shrink-0 place-items-center rounded-full bg-linear-to-br from-brand-500 to-sky-500 text-2xl font-black text-white">
@@ -128,6 +150,42 @@ export default function ProfilPage() {
         </Card>
       </Section>
 
+      <Section title="Master Data">
+        <Card>
+          <MasterDataSync />
+        </Card>
+      </Section>
+
+      <Section title="Data Lead">
+        <Card>
+          <LeadsMaintenance />
+        </Card>
+      </Section>
+
+      <Section title="Database lokal">
+        <Card className="flex flex-col gap-3">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Data aplikasi tersimpan di dalam browser (OPFS), bukan sebagai berkas di perangkat.
+            Unduh salinannya bila ingin memeriksa isinya dengan DBeaver atau DB Browser for
+            SQLite.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => void unduhDatabase()}
+            disabled={mengekspor}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 sm:w-auto sm:px-6 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+          >
+            <Database className="size-4" aria-hidden />
+            {mengekspor ? "Menyiapkan …" : "Unduh salinan database"}
+          </button>
+
+          {eksporError && (
+            <p className="text-sm font-medium text-rose-600 dark:text-rose-400">{eksporError}</p>
+          )}
+        </Card>
+      </Section>
+
       <form action={logoutAction}>
         <button
           type="submit"
@@ -137,7 +195,7 @@ export default function ProfilPage() {
           Keluar
         </button>
       </form>
-    </>
+    </div>
   );
 }
 

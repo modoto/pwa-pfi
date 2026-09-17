@@ -11,12 +11,19 @@
     "lint": "eslint",
     "gen:icons": "node scripts/generate-icons.mjs",
     "sqlite:copy": "node scripts/copy-sqlite.mjs",
-    "postinstall": "node scripts/copy-sqlite.mjs",
-    "prebuild": "node scripts/copy-sqlite.mjs",
-    "predev": "node scripts/copy-sqlite.mjs"
+    "riplay:copy": "node scripts/copy-riplay.mjs",
+    "postinstall": "node scripts/copy-sqlite.mjs && node scripts/copy-riplay.mjs",
+    "prebuild": "node scripts/copy-sqlite.mjs && node scripts/copy-riplay.mjs",
+    "predev": "node scripts/copy-sqlite.mjs && node scripts/copy-riplay.mjs",
+    "msl:tables": "node scripts/extract-msl-tables.mjs",
+    "maml:tables": "node scripts/extract-maml-tables.mjs",
+    "mame:tables": "node scripts/extract-mame-tables.mjs",
+    "rop:tables": "node scripts/extract-rop-tables.mjs"
   },
   "dependencies": {
     "@sqlite.org/sqlite-wasm": "^3.53.0-build1",
+    "docx-preview": "^0.4.0",
+    "jszip": "^3.10.1",
     "lucide-react": "^1.34.0",
     "next": "16.3.3",
     "react": "19.2.8",

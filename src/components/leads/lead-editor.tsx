@@ -11,7 +11,7 @@ import { getLead, type LeadRow } from "@/lib/db/leads-repo";
  * Form baru dipasang setelah datanya ada, karena nilai awal setiap field
  * dibaca sekali saat komponen pertama kali dirender.
  */
-export function LeadEditor({ leadId }: { leadId: string }) {
+export function LeadEditor({ leadId, channel = "" }: { leadId: string; channel?: string }) {
   const [lead, setLead] = useState<LeadRow | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "missing" | "error">("loading");
   const [message, setMessage] = useState("");
@@ -56,5 +56,5 @@ export function LeadEditor({ leadId }: { leadId: string }) {
     );
   }
 
-  return <LeadForm lead={lead} />;
+  return <LeadForm lead={lead} channel={channel} />;
 }
